@@ -1,5 +1,5 @@
 const express = require('express');
-const imghash = require('imghash');
+const imghash = require('@mole-inc/imghash');
 
 const app = express();
 app.use(express.json());
