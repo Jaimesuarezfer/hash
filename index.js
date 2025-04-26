@@ -1,44 +1,27 @@
 const express = require('express');
-const fetch = require('node-fetch');
-const { imageHash } = require('image-hash');
+const imghash = require('imghash');
 
 const app = express();
 app.use(express.json());
 
-function hammingDistance(a, b) {
+function hammingDistance(hash1, hash2) {
   let dist = 0;
-  for (let i = 0; i < a.length; i++) {
-    if (a[i] !== b[i]) dist++;
+  for (let i = 0; i < hash1.length; i++) {
+    if (hash1[i] !== hash2[i]) dist++;
   }
   return dist;
-}
-
-// Promisify manualmente imageHash
-function getImageHash(buffer) {
-  return new Promise((resolve, reject) => {
-    imageHash(buffer, 16, true, (error, data) => {
-      if (error) reject(error);
-      else resolve(data);
-    });
-  });
 }
 
 app.post('/compare', async (req, res) => {
   const { url_1, url_2, tolerance = 5 } = req.body;
 
+  if (!url_1 || !url_2) {
+    return res.status(400).json({ error: 'Both url_1 and url_2 are required.' });
+  }
+
   try {
-    const response1 = await fetch(url_1);
-    const response2 = await fetch(url_2);
-
-    if (!response1.ok || !response2.ok) {
-      throw new Error('Failed to fetch one or both images.');
-    }
-
-    const buffer1 = await response1.buffer();
-    const buffer2 = await response2.buffer();
-
-    const hash1 = await getImageHash(buffer1);
-    const hash2 = await getImageHash(buffer2);
+    const hash1 = await imghash.hash(url_1, 16); // 16x16
+    const hash2 = await imghash.hash(url_2, 16);
 
     const distance = hammingDistance(hash1, hash2);
     const percentDifference = (distance / 64) * 100;
@@ -48,7 +31,7 @@ app.post('/compare', async (req, res) => {
       hash2,
       bits_different: distance,
       percent_difference: percentDifference.toFixed(2),
-      changed: percentDifference >= tolerance,
+      changed: percentDifference >= tolerance
     });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -57,5 +40,5 @@ app.post('/compare', async (req, res) => {
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-  console.log(`Server listening on port ${PORT}`);
+  console.log(`Server running on port ${PORT}`);
 });
