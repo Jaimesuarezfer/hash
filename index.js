@@ -1,15 +1,29 @@
 const express = require('express');
-const imghash = require('@mole-inc/imghash');
+const sharp = require('sharp');
+const fetch = require('node-fetch');
+const crypto = require('crypto');
 
 const app = express();
 app.use(express.json());
 
-function hammingDistance(hash1, hash2) {
-  let dist = 0;
-  for (let i = 0; i < hash1.length; i++) {
-    if (hash1[i] !== hash2[i]) dist++;
+async function downloadAndResize(url) {
+  const response = await fetch(url);
+  if (!response.ok) throw new Error(`Failed to fetch image: ${url}`);
+  const buffer = await response.buffer();
+  const resized = await sharp(buffer)
+    .resize(8, 8, { fit: 'fill' })
+    .grayscale()
+    .raw()
+    .toBuffer();
+  return resized;
+}
+
+function calculateDifference(buffer1, buffer2) {
+  let diff = 0;
+  for (let i = 0; i < buffer1.length; i++) {
+    if (buffer1[i] !== buffer2[i]) diff++;
   }
-  return dist;
+  return diff;
 }
 
 app.post('/compare', async (req, res) => {
@@ -20,16 +34,15 @@ app.post('/compare', async (req, res) => {
   }
 
   try {
-    const hash1 = await imghash.hash(url_1, 16); // 16x16
-    const hash2 = await imghash.hash(url_2, 16);
+    const img1 = await downloadAndResize(url_1);
+    const img2 = await downloadAndResize(url_2);
 
-    const distance = hammingDistance(hash1, hash2);
-    const percentDifference = (distance / 64) * 100;
+    const diffPixels = calculateDifference(img1, img2);
+    const totalPixels = img1.length;
+    const percentDifference = (diffPixels / totalPixels) * 100;
 
     res.json({
-      hash1,
-      hash2,
-      bits_different: distance,
+      pixels_different: diffPixels,
       percent_difference: percentDifference.toFixed(2),
       changed: percentDifference >= tolerance
     });
