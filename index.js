@@ -1,12 +1,9 @@
 const express = require('express');
 const fetch = require('node-fetch');
 const { imageHash } = require('image-hash');
-const { promisify } = require('util');
 
 const app = express();
 app.use(express.json());
-
-const phash = promisify(imageHash);
 
 function hammingDistance(a, b) {
   let dist = 0;
@@ -14,6 +11,16 @@ function hammingDistance(a, b) {
     if (a[i] !== b[i]) dist++;
   }
   return dist;
+}
+
+// Promisify manualmente imageHash
+function getImageHash(buffer) {
+  return new Promise((resolve, reject) => {
+    imageHash(buffer, 16, true, (error, data) => {
+      if (error) reject(error);
+      else resolve(data);
+    });
+  });
 }
 
 app.post('/compare', async (req, res) => {
@@ -30,8 +37,8 @@ app.post('/compare', async (req, res) => {
     const buffer1 = await response1.buffer();
     const buffer2 = await response2.buffer();
 
-    const hash1 = await phash(buffer1, 16, true);
-    const hash2 = await phash(buffer2, 16, true);
+    const hash1 = await getImageHash(buffer1);
+    const hash2 = await getImageHash(buffer2);
 
     const distance = hammingDistance(hash1, hash2);
     const percentDifference = (distance / 64) * 100;
