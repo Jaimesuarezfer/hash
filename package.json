@@ -10,5 +10,8 @@
     "express": "^4.18.2",
     "node-fetch": "^2.6.7",
     "sharp": "^0.32.1"
+  },
+  "sharp": {
+    "binary_host": "https://npm.taobao.org/mirrors/sharp-libvips/"
   }
 }
